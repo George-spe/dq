@@ -5,7 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>FIST持币分红计划</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  <!-- 添加备用ethers加载方案 -->
+  <script>
+    // 预加载ethers，如果CDN失败则使用备用方案
+    function loadEthers() {
+      return new Promise((resolve, reject) => {
+        // 检查是否已经加载
+        if (typeof ethers !== 'undefined') {
+          resolve(ethers);
+          return;
+        }
+
+        // 主要CDN
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js';
+        script.onload = () => {
+          if (typeof ethers !== 'undefined') {
+            resolve(ethers);
+          } else {
+            loadEthersFallback().then(resolve).catch(reject);
+          }
+        };
+        script.onerror = () => {
+          loadEthersFallback().then(resolve).catch(reject);
+        };
+        document.head.appendChild(script);
+      });
+    }
+
+    function loadEthersFallback() {
+      return new Promise((resolve, reject) => {
+        // 备用CDN
+        const fallbackScript = document.createElement('script');
+        fallbackScript.src = 'https://unpkg.com/ethers@5.7.2/dist/ethers.min.js';
+        fallbackScript.onload = () => {
+          if (typeof ethers !== 'undefined') {
+            resolve(ethers);
+          } else {
+            reject(new Error('无法加载ethers库'));
+          }
+        };
+        fallbackScript.onerror = () => {
+          reject(new Error('所有ethers CDN都加载失败'));
+        };
+        document.head.appendChild(fallbackScript);
+      });
+    }
+
+    // 页面加载时预加载ethers
+    window.addEventListener('load', () => {
+      loadEthers().catch(error => {
+        console.error('ethers加载失败:', error);
+        // 显示错误提示
+        const toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#ef4444;color:white;padding:12px 20px;border-radius:8px;z-index:10000;';
+        toast.textContent = '网络连接问题，请刷新页面重试';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+      });
+    });
+  </script>
   <style>
     * {
       box-sizing: border-box;
@@ -155,6 +214,12 @@
       background: linear-gradient(135deg, #e6900a, #dc2626);
       background: -webkit-linear-gradient(135deg, #e6900a, #dc2626);
     }
+
+    /* 加载状态 */
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body class="text-gray-800">
@@ -275,15 +340,6 @@
   <div id="toast" class="toast">提示消息</div>
 
   <script>
-    // 检查ethers是否加载成功
-    function checkEthersLoaded() {
-      if (typeof ethers === 'undefined') {
-        showToast('ethers库加载失败，请刷新页面重试');
-        return false;
-      }
-      return true;
-    }
-
     // 合约地址 - 部署后替换为您的合约地址
     const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
     
@@ -508,6 +564,17 @@
     let provider, signer, userAddress;
     let contract;
     let isAdmin = false;
+    let ethersLoaded = false;
+
+    // 检查ethers是否加载成功
+    function checkEthersLoaded() {
+      if (typeof ethers === 'undefined') {
+        showToast('ethers库加载失败，请刷新页面重试');
+        return false;
+      }
+      ethersLoaded = true;
+      return true;
+    }
 
     // 检测Web3钱包
     function detectWeb3Wallet() {
@@ -527,7 +594,12 @@
       try {
         // 检查ethers是否已加载
         if (!checkEthersLoaded()) {
-          return;
+          // 尝试重新加载ethers
+          await loadEthers();
+          if (!checkEthersLoaded()) {
+            showToast('网络连接问题，请刷新页面重试');
+            return;
+          }
         }
 
         const ethereum = detectWeb3Wallet();
@@ -535,6 +607,11 @@
           showToast('请安装Web3钱包（如MetaMask、Trust Wallet等）');
           return;
         }
+
+        // 显示连接中状态
+        const connectBtn = document.getElementById('connectWalletBtn');
+        connectBtn.textContent = '连接中...';
+        connectBtn.classList.add('loading');
 
         // 请求账户连接
         const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
@@ -550,9 +627,9 @@
         isAdmin = contractOwner.toLowerCase() === userAddress.toLowerCase();
         
         // 更新UI
-        document.getElementById('connectWalletBtn').textContent = 
-          userAddress.slice(0,6) + '...' + userAddress.slice(-4);
-        document.getElementById('connectWalletBtn').classList.add('bg-green-500', 'hover:bg-green-600');
+        connectBtn.textContent = userAddress.slice(0,6) + '...' + userAddress.slice(-4);
+        connectBtn.classList.remove('loading', 'bg-yellow-400', 'hover:bg-yellow-500');
+        connectBtn.classList.add('bg-green-500', 'hover:bg-green-600');
         
         // 显示管理员面板
         if (isAdmin) {
@@ -584,13 +661,23 @@
         
       } catch (error) {
         console.error('钱包连接失败:', error);
-        showToast('钱包连接失败: ' + error.message);
+        // 恢复按钮状态
+        const connectBtn = document.getElementById('connectWalletBtn');
+        connectBtn.textContent = '连接钱包';
+        connectBtn.classList.remove('loading');
+        
+        if (error.code === 4001) {
+          showToast('用户拒绝了连接请求');
+        } else {
+          showToast('钱包连接失败: ' + error.message);
+        }
       }
     }
 
     function disconnectWallet() {
       document.getElementById('connectWalletBtn').textContent = '连接钱包';
-      document.getElementById('connectWalletBtn').classList.remove('bg-green-500', 'hover:bg-green-600');
+      document.getElementById('connectWalletBtn').classList.remove('bg-green-500', 'hover:bg-green-600', 'loading');
+      document.getElementById('connectWalletBtn').classList.add('bg-yellow-400', 'hover:bg-yellow-500');
       document.getElementById('adminPanel').style.display = 'none';
       provider = null;
       signer = null;
@@ -765,7 +852,7 @@
         claimed++;
         updateProgress();
       }
-    }, 1000);  // 从3000ms改为1000ms
+    }, 1000);
     
     updateProgress();
 
@@ -823,7 +910,7 @@
       records.unshift(generateRecord());
       if (records.length > 8) records.pop();
       renderRecords();
-    }, 1000);  // 从5000ms改为1000ms
+    }, 1000);
     
     renderRecords();
 
@@ -891,6 +978,13 @@
 
     // 自动检测钱包
     window.addEventListener('load', () => {
+      // 检查ethers是否已加载
+      setTimeout(() => {
+        if (!checkEthersLoaded()) {
+          showToast('ethers库加载失败，请刷新页面');
+        }
+      }, 2000);
+
       if (detectWeb3Wallet()) {
         const ethereum = detectWeb3Wallet();
         ethereum.request({ method: 'eth_accounts' }).then(accounts => {
