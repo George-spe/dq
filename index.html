@@ -275,6 +275,15 @@
   <div id="toast" class="toast">提示消息</div>
 
   <script>
+    // 检查ethers是否加载成功
+    function checkEthersLoaded() {
+      if (typeof ethers === 'undefined') {
+        showToast('ethers库加载失败，请刷新页面重试');
+        return false;
+      }
+      return true;
+    }
+
     // 合约地址 - 部署后替换为您的合约地址
     const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
     
@@ -500,8 +509,8 @@
     let contract;
     let isAdmin = false;
 
-    // 检测TP钱包
-    function detectTPWallet() {
+    // 检测Web3钱包
+    function detectWeb3Wallet() {
       if (typeof window.ethereum !== 'undefined') {
         return window.ethereum;
       }
@@ -516,9 +525,14 @@
     
     async function connectWallet() {
       try {
-        const ethereum = detectTPWallet();
+        // 检查ethers是否已加载
+        if (!checkEthersLoaded()) {
+          return;
+        }
+
+        const ethereum = detectWeb3Wallet();
         if (!ethereum) {
-          showToast('请安装TP钱包或其他Web3钱包');
+          showToast('请安装Web3钱包（如MetaMask、Trust Wallet等）');
           return;
         }
 
@@ -877,8 +891,8 @@
 
     // 自动检测钱包
     window.addEventListener('load', () => {
-      if (detectTPWallet()) {
-        const ethereum = detectTPWallet();
+      if (detectWeb3Wallet()) {
+        const ethereum = detectWeb3Wallet();
         ethereum.request({ method: 'eth_accounts' }).then(accounts => {
           if (accounts.length > 0) {
             connectWallet();
